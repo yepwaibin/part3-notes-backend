@@ -25,7 +25,6 @@ app.get("/api/persons", (req, res) => {
 });
 
 app.get("/api/persons/:id", (req, res, next) => {
-  // const searchById = req.params.id;
   Phone.findById(req.params.id)
     .then((phones) => {
       if (phones) {
@@ -75,7 +74,6 @@ app.post("/api/persons", (req, res) => {
     });
     phone.save().then((phoneSaved) => {
       console.log("phone saved");
-      // mongoose.connection.close();
       res.json(phoneSaved);
     });
   }
