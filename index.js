@@ -1,6 +1,8 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const app = express();
+const Phone = require("./phone.js");
 const PORT = process.env.PORT || 3001;
 
 const morgan = require("morgan");
@@ -14,54 +16,46 @@ app.use(
     ":method :url :status :res[content-length] - :response-time ms :content"
   )
 );
-let persons = [
-  {
-    id: 1,
-    name: "Arto Hellas",
-    number: "040-123456",
-  },
-  {
-    id: 2,
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-  },
-  {
-    id: 3,
-    name: "Dan Abramov",
-    number: "12-43-234345",
-  },
-  {
-    id: 4,
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-  },
-];
 
 app.get("/api/persons", (req, res) => {
-  res.json(persons);
+  Phone.find({}).then((phones) => {
+    console.log(phones);
+    res.json(phones);
+  });
 });
 
-app.get("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const person = persons.find((person) => person.id === id);
-  if (person) {
-    res.json(person);
-  } else {
-    res.status(404).end();
-  }
+app.get("/api/persons/:id", (req, res, next) => {
+  // const searchById = req.params.id;
+  Phone.findById(req.params.id)
+    .then((phones) => {
+      if (phones) {
+        res.json(phones);
+      } else {
+        res.status(404).end();
+      }
+    })
+    .catch((err) => {
+      next(err);
+    });
 });
 
 app.get("/info", (req, res) => {
   let date = new Date();
-  res.send(
-    `<div>phonebook has info for ${persons.length} people</div><div>${date}</div>`
+  Phone.find({}).then((phones) =>
+    res.send(
+      `<div>phonebook has info for ${phones.length} people</div><div>${date}</div>`
+    )
   );
 });
 
-app.delete("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id);
-  persons = persons.filter((person) => person.id !== id);
-  res.status(204).end();
+app.delete("/api/persons/:id", (req, res, next) => {
+  Phone.findByIdAndRemove(req.params.id)
+    .then((result) => {
+      res.status(204).end();
+    })
+    .catch((err) => {
+      next(err);
+    });
 });
 
 app.post("/api/persons", (req, res) => {
@@ -75,20 +69,35 @@ app.post("/api/persons", (req, res) => {
       error: "number missing",
     });
   } else {
-    if (persons.find((person) => person.name === body.name)) {
-      res.status(404).json({
-        error: "the name already exists .name must be unique.",
-      });
-    } else {
-      let person = {
-        id: Math.floor(Math.random() * 1000000),
-        name: body.name,
-        number: body.number,
-      };
-      persons = persons.concat(person);
-      res.json(person);
-    }
+    const phone = new Phone({
+      name: body.name,
+      number: body.number,
+    });
+    phone.save().then((phoneSaved) => {
+      console.log("phone saved");
+      // mongoose.connection.close();
+      res.json(phoneSaved);
+    });
   }
 });
 
+app.put("/api/persons/:id", (req, res, next) => {
+  const body = req.body;
+  const phone = {
+    name: body.name,
+    number: body.number,
+  };
+  Phone.findByIdAndUpdate(req.params.id, phone, { new: true })
+    .then((updatePhone) => res.json(updatePhone))
+    .catch((err) => next(err));
+});
+
+const errorHandle = (err, req, res, next) => {
+  console.error(err.message);
+  if (err.name === "CastError" && err.kind === "ObjectId") {
+    return res.status(400).send({ error: "malformatted id" });
+  }
+  next(err);
+};
+app.use(errorHandle);
 app.listen(PORT, () => console.log(`server already start ${PORT}`));
