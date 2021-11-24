@@ -19,7 +19,6 @@ app.use(
 
 app.get("/api/persons", (req, res) => {
   Phone.find({}).then((phones) => {
-    console.log(phones);
     res.json(phones);
   });
 });
